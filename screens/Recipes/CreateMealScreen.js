@@ -7,40 +7,80 @@ import {
   Alert,
   Text,
   Switch,
+  Image,
+  TouchableOpacity,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import uuid from "react-native-uuid";
+import * as ImagePicker from "expo-image-picker";
+import { Picker } from "@react-native-picker/picker"; // npm install @react-native-picker/picker
+import { CATEGORIES } from "../../data/dummy-data"; // Ajusta la ruta según tu proyecto
 
 function CreateMealScreen({ navigation }) {
   const [title, setTitle] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
+  const [imageUri, setImageUri] = useState("");
   const [duration, setDuration] = useState("");
   const [complexity, setComplexity] = useState("");
   const [affordability, setAffordability] = useState("");
   const [ingredients, setIngredients] = useState("");
   const [steps, setSteps] = useState("");
+  const [categoryId, setCategoryId] = useState(CATEGORIES[0]?.id || "");
   const [isGlutenFree, setIsGlutenFree] = useState(false);
   const [isVegan, setIsVegan] = useState(false);
   const [isVegetarian, setIsVegetarian] = useState(false);
   const [isLactoseFree, setIsLactoseFree] = useState(false);
 
+  useEffect(() => {
+    (async () => {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permiso denegado",
+          "Necesitamos permiso para usar la cámara para tomar fotos."
+        );
+      }
+    })();
+  }, []);
+
+  async function takeImageHandler() {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.5,
+      });
+
+      if (!result.canceled) {
+        setImageUri(result.assets[0].uri);
+      }
+    } catch (err) {
+      Alert.alert("Error", "No se pudo abrir la cámara.");
+    }
+  }
+
   async function submitHandler() {
-    if (!title || !imageUrl || !duration || !complexity || !affordability) {
+    if (!title.trim() || !duration.trim() || !complexity.trim() || !affordability.trim()) {
       Alert.alert("Error", "Por favor, completa todos los campos obligatorios.");
       return;
     }
 
     const newMeal = {
       id: uuid.v4(),
-      categoryIds: ["c1"], // puedes permitir seleccionar categorías más adelante
+      categoryIds: [categoryId],
       title,
-      imageUrl,
+      imageUrl: imageUri,
       duration: +duration,
       complexity,
       affordability,
-      ingredients: ingredients.split(",").map((i) => i.trim()),
-      steps: steps.split("\n").map((s) => s.trim()),
+      ingredients: ingredients
+        .split(",")
+        .map((i) => i.trim())
+        .filter(Boolean),
+      steps: steps
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
       isGlutenFree,
       isVegan,
       isVegetarian,
@@ -62,12 +102,61 @@ function CreateMealScreen({ navigation }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <TextInput style={styles.input} placeholder="Título" value={title} onChangeText={setTitle} />
-      <TextInput style={styles.input} placeholder="URL Imagen" value={imageUrl} onChangeText={setImageUrl} />
-      <TextInput style={styles.input} placeholder="Duración (minutos)" value={duration} onChangeText={setDuration} keyboardType="numeric" />
-      <TextInput style={styles.input} placeholder="Complejidad (simple, hard...)" value={complexity} onChangeText={setComplexity} />
-      <TextInput style={styles.input} placeholder="Costo (affordable, pricey...)" value={affordability} onChangeText={setAffordability} />
-      <TextInput style={styles.input} placeholder="Ingredientes (separados por coma)" value={ingredients} onChangeText={setIngredients} />
+      <TextInput
+        style={styles.input}
+        placeholder="Título"
+        value={title}
+        onChangeText={setTitle}
+      />
+
+      <Text style={{ marginTop: 10 }}>Categoría:</Text>
+      <View style={styles.pickerContainer}>
+        <Picker
+          selectedValue={categoryId}
+          onValueChange={(itemValue) => setCategoryId(itemValue)}
+        >
+          {CATEGORIES.map((cat) => (
+            <Picker.Item label={cat.title} value={cat.id} key={cat.id} />
+          ))}
+        </Picker>
+      </View>
+
+      <View style={{ marginVertical: 10 }}>
+        <Button title="Tomar Foto (opcional)" onPress={takeImageHandler} />
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.image} />
+        ) : (
+          <Text style={{ marginTop: 8, fontStyle: "italic", color: "#666" }}>
+            No hay foto seleccionada
+          </Text>
+        )}
+      </View>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Duración (minutos)"
+        value={duration}
+        onChangeText={setDuration}
+        keyboardType="numeric"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Complejidad (simple, hard...)"
+        value={complexity}
+        onChangeText={setComplexity}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Costo (affordable, pricey...)"
+        value={affordability}
+        onChangeText={setAffordability}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Ingredientes (ej: tomate 4, pepino 150, queso 40)"
+        value={ingredients}
+        onChangeText={setIngredients}
+      />
       <TextInput
         style={[styles.input, { height: 100 }]}
         multiline
@@ -114,5 +203,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginVertical: 6,
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 4,
+  },
+  image: {
+    width: "100%",
+    height: 200,
+    marginTop: 10,
+    borderRadius: 8,
   },
 });
