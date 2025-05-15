@@ -1,4 +1,4 @@
-import { FlatList } from "react-native";
+import { FlatList, View, Button, StyleSheet } from "react-native";
 import CategoryGridTile from "../../components/CategoryGridTile";
 import { CATEGORIES } from "../../data/dummy-data";
 
@@ -18,16 +18,36 @@ function CategoriesScreen({ navigation }) {
       />
     );
   }
+
   return (
-    <FlatList
-      data={CATEGORIES}
-      keyExtractor={(item) => item.id}
-      renderItem={renderCategoryItem}
-      numColumns={2}
-      columnWrapperStyle={{ justifyContent: "space-between" }}
-      contentContainerStyle={{ paddingHorizontal: 8, flexGrow: 1 }}
-    />
+    <View style={styles.container}>
+      <View style={styles.addButton}>
+        <Button
+          title="Añadir Receta"
+          onPress={() => navigation.navigate("CreateMeal")}
+        />
+      </View>
+      <FlatList
+        data={CATEGORIES}
+        keyExtractor={(item) => item.id}
+        renderItem={renderCategoryItem}
+        numColumns={2}
+        columnWrapperStyle={{ justifyContent: "space-between" }}
+        contentContainerStyle={{ paddingHorizontal: 8, flexGrow: 1 }}
+      />
+    </View>
   );
 }
 
 export default CategoriesScreen;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingTop: 16,
+  },
+  addButton: {
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+});
