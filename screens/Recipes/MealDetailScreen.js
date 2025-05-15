@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -37,6 +37,14 @@ function MealDetailScreen() {
           const allMeals = [...MEALS, ...userMeals];
           const selectedMeal = allMeals.find((meal) => meal.id === mealId);
           setMeal(selectedMeal);
+
+          // Guardar la última receta vista para mostrarla en HomeScreen
+          if (selectedMeal) {
+            await AsyncStorage.setItem(
+              "lastVisitedMeal",
+              JSON.stringify(selectedMeal)
+            );
+          }
         } catch (error) {
           console.error("Error al cargar el detalle de la receta:", error);
         } finally {
