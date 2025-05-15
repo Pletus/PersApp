@@ -13,6 +13,7 @@ import { useFocusEffect } from "@react-navigation/native";
 export default function HomeScreen({ navigation }) {
   const [lastVisitedMeal, setLastVisitedMeal] = useState(null);
   const [urgentTasks, setUrgentTasks] = useState([]);
+  const [monthlyBalance, setMonthlyBalance] = useState(0);
   const [latestExpenses, setLatestExpenses] = useState([]);
 
   useFocusEffect(
@@ -23,22 +24,56 @@ export default function HomeScreen({ navigation }) {
           const mealJSON = await AsyncStorage.getItem("lastVisitedMeal");
           setLastVisitedMeal(mealJSON ? JSON.parse(mealJSON) : null);
 
-          // Cargar tareas guardadas (clave correcta y estructura correcta)
+          // Tareas
           const todosJSON = await AsyncStorage.getItem("todoTasks");
           const todos = todosJSON ? JSON.parse(todosJSON) : [];
-
-          // Filtrar tareas urgentes y no completadas
           const urgents = todos.filter(
             (task) => task.done === false && task.urgent === true
           );
-
           setUrgentTasks(urgents);
 
-          // Gastos fijos
-          setLatestExpenses([
-            { label: "Supermercado", amount: "45€" },
-            { label: "Spotify", amount: "9,99€" },
-          ]);
+          // Transacciones
+          const transactionsJSON = await AsyncStorage.getItem("transactions");
+          const transactions = transactionsJSON
+            ? JSON.parse(transactionsJSON)
+            : [];
+
+          const currentMonth = new Date().getMonth();
+          const currentYear = new Date().getFullYear();
+
+          const filteredExpenses = transactions.filter((t) => {
+            const [year, month] = t.date.split("-").map(Number);
+            return (
+              t.type === "expense" &&
+              year === currentYear &&
+              month - 1 === currentMonth
+            );
+          });
+
+          const filteredIncomes = transactions.filter((t) => {
+            const [year, month] = t.date.split("-").map(Number);
+            return (
+              t.type === "income" &&
+              year === currentYear &&
+              month - 1 === currentMonth
+            );
+          });
+
+          const totalExpenses = filteredExpenses.reduce(
+            (acc, e) => acc + Number(e.amount),
+            0
+          );
+          const totalIncome = filteredIncomes.reduce(
+            (acc, i) => acc + Number(i.amount),
+            0
+          );
+
+          setMonthlyBalance(totalIncome - totalExpenses);
+
+          const sortedExpenses = [...filteredExpenses].sort(
+            (a, b) => new Date(b.date) - new Date(a.date)
+          );
+          setLatestExpenses(sortedExpenses.slice(0, 2));
         } catch (e) {
           console.log("Error loading data", e);
         }
@@ -49,7 +84,10 @@ export default function HomeScreen({ navigation }) {
 
   function openMealDetail() {
     if (lastVisitedMeal) {
-      navigation.navigate("MealDetail", { mealId: lastVisitedMeal.id });
+      navigation.navigate("Recetario", {
+        screen: "MealDetail",
+        params: { mealId: lastVisitedMeal.id },
+      });
     }
   }
 
@@ -60,7 +98,6 @@ export default function HomeScreen({ navigation }) {
     >
       <Text style={styles.header}>Bienvenido 👋</Text>
 
-      {/* Card Tareas urgentes */}
       <View style={[styles.card, styles.cardUrgent]}>
         <Text style={styles.cardTitle}>📌 Tareas Urgentes</Text>
         {urgentTasks.length === 0 ? (
@@ -74,21 +111,32 @@ export default function HomeScreen({ navigation }) {
         )}
       </View>
 
-      {/* Card Últimos gastos */}
-      <View style={[styles.card, styles.cardExpenses]}>
-        <Text style={styles.cardTitle}>💸 Últimos gastos</Text>
+      <View
+        style={[
+          styles.card,
+          monthlyBalance >= 0 ? styles.cardPositive : styles.cardNegative,
+        ]}
+      >
+        <Text style={styles.cardTitle}>💰 Balance mensual</Text>
+        <Text style={styles.balanceText}>
+          {monthlyBalance >= 0 ? "+" : "-"}
+          {Math.abs(monthlyBalance).toFixed(2)} €
+        </Text>
+
+        <Text style={[styles.cardSubtitle, { marginTop: 10 }]}>
+          💸 Últimos gastos
+        </Text>
         {latestExpenses.length === 0 ? (
           <Text style={styles.cardText}>No hay gastos recientes</Text>
         ) : (
-          latestExpenses.map(({ label, amount }, i) => (
+          latestExpenses.map(({ description, amount, date }, i) => (
             <Text key={i} style={styles.cardText}>
-              • {label}: {amount}
+              • {description} - {amount}€ ({date})
             </Text>
           ))
         )}
       </View>
 
-      {/* Card Última receta vista */}
       <TouchableOpacity
         style={[styles.card, styles.cardRecipe]}
         activeOpacity={0.8}
@@ -149,22 +197,39 @@ const styles = StyleSheet.create({
   },
   cardUrgent: {
     borderLeftWidth: 6,
-    borderLeftColor: "#ff6b6b", // rojo fuerte para urgente
-  },
-  cardExpenses: {
-    borderLeftWidth: 6,
-    borderLeftColor: "#4ecdc4",
+    borderLeftColor: "#ff6b6b",
   },
   cardRecipe: {
     borderLeftWidth: 6,
     borderLeftColor: "#1a535c",
     alignItems: "center",
   },
+  cardPositive: {
+    borderLeftWidth: 6,
+    borderLeftColor: "#2ecc71",
+    backgroundColor: "#e8f9f1",
+  },
+  cardNegative: {
+    borderLeftWidth: 6,
+    borderLeftColor: "#e74c3c",
+    backgroundColor: "#fdecea",
+  },
   cardTitle: {
     fontSize: 20,
     fontWeight: "700",
     color: "#344055",
     marginBottom: 12,
+  },
+  cardSubtitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#344055",
+    marginBottom: 6,
+  },
+  balanceText: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#344055",
   },
   cardText: {
     fontSize: 16,
