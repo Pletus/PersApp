@@ -21,6 +21,7 @@ export default function RecipesStack() {
       />
       <Stack.Screen name="MealDetail" component={MealDetailScreen} />
       <Stack.Screen name="CreateMeal" component={CreateMealScreen} />
+      <Stack.Screen name="NewMeal" component={MealDetailScreen} />
     </Stack.Navigator>
   );
 }
